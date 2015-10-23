@@ -1,0 +1,114 @@
+---
+title: "Practical Machine Learning Project"
+output: html_document
+---
+
+<h4>Background</h4>
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+<h4>Data</h4>
+The training data for this project are available here: 
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here: 
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment. 
+
+<h3>Preprocessing</h3>
+<b>Install packages</b>
+Below are the packages that I chose to load for this project. Please note these packages must be installed prior to loading. This can be done by using the install.packages function.
+
+```{r}
+library(caret); library(randomForest); library(rpart); library(rpart.plot); library(rattle); library(RColorBrewer);
+```
+<b>set seed</b> It is important to set  the seed for reproducibility. Below is the seed I've chosen to use.
+```{r}
+set.seed(1015)
+```
+
+<h3>Getting & Cleaning Data</h3>
+We must now load the data sets into R. We will want to make sure that missing values are coded correctly and we remove any variables that are not needed.
+<p><b>Downloading Data</b>
+Training and Testing sets as provided in the assigment:</p> 
+```{r}
+training <- read.csv("pml-training.csv", na.strings=c("NA", "#DIV/0!", ""))
+
+testing <- read.csv("pml-testing.csv", na.strings=c("NA", "#DIV/0!", ""))
+```
+
+<b>Cleaning Data</b>
+```{r}
+##Removing missing variables
+cleanTrain <- training[,colSums(is.na(training))==0]
+cleanTest <- testing[,colSums(is.na(testing))==0]
+
+##Removing columns 1-7 as they aren't needed in this project
+cleanTrain <- cleanTrain[, -c(1:7)]
+cleanTest <- cleanTest[, -c(1:7)]
+```
+<b>Inspecting new dataset</b>
+```{r}
+dim(cleanTrain); dim(cleanTest)
+```
+
+<h3>Partitioning Data</h3>
+In order to perform cross-validation we need to split the training data into subsets. The training set consists of 60% of the original training data set while the SubTrain will consist of 40% of the original training data set.
+This will allow us to build the model using the 60% and test it using the remaining 40%.
+```{r}
+inTrain <- createDataPartition(y=cleanTrain$classe, p=0.6, list=FALSE)
+##60% of the training data
+train <- cleanTrain[inTrain, ]
+##40% of the training data
+subTrain <- cleanTrain[-inTrain, ]
+dim(train); dim(subTrain)
+```
+<h3>Decision Tree for Prediction</h3>
+The first model I chose to build is a decision tree.
+```{r}
+##Build Model
+mod1 <- rpart(classe ~., data=train, method="class")
+fancyRpartPlot(mod1)
+```
+<p>Let's now predict using the remaining 40% of the data.</p>
+
+```{r}
+pred1 <- predict(mod1, subTrain, type="class")
+```
+We can now see the results of our prediction using a confusion matrix.
+
+```{r}
+confusionMatrix(pred1, subTrain$classe)
+```
+As we can see, our accuracy is 0.7445 with a 95% CI of (0.7347, 0.7541). We will try another modeling technique to see if we can get any better results
+<h3>Random Forest for Prediction</h3>
+We will build the Random Forest with the 60% of the training dataset.
+
+```{r}
+mod2 <- randomForest(classe ~., data=train, method="class")
+```
+We will now use this model to predict the remaining 40% of the training data.
+
+```{r}
+pred2 <- predict(mod2, subTrain, type="class")
+```
+Let's now look at the confusion matrix.
+```{r}
+confusionMatrix(pred2, subTrain$classe)
+```
+As we can see, our accuracy is 0.9932 with a 95% CI of (0.9912, 0.9949). We will try another modeling technique to see if we can get any better results
+
+In this case it is not surprising that the random forest has better accuracy. We will move forward using this for the submission part of this project.
+<h3>Submission</h3>
+In the submission part of the project, we will using the Testing data provided in the assignment.
+```{r}
+##Using model 2 to predict outcomes in the test set.
+fpred <- predict(mod2, cleanTest, type="class")
+```
+Test prediction outcomes using model 2. To keep with the Coursera honor code, I am not printing the results in this report.
+
+```{r} 
+##fpred
+```
